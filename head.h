@@ -5,8 +5,13 @@
 #include <sys/stat.h>
 
 //Functoin return list of files and folders
-char** open_directory(char*, size_t*);
+struct file_info** open_directory(char* path_dir, size_t* size);
 
-char* name_file_or_dir (char* , char* );
+//Function give info about file or directory
+struct file_info* name_file_or_dir (char* path_dir, char* name);
 
-void free_memory(char** , int);
+//Function free memory 
+void free_memory(struct file_info** catalog, size_t size);
+
+//Function print directory
+void print(struct file_info** catalog, size_t size);
