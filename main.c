@@ -3,21 +3,21 @@
 
 int main(int argc, char** argv){
 	char* path_out;
+	char* path_dir;
 
-	if(argc < 2)
+	if(argc < 2){
 		path_out = "output.txt";
-	else
-		path_out = argv[1];
-		
-	size_t size = 0;
-	char* path_dir_with_0 = NULL;
-	
-	getline(&path_dir_with_0, &size, stdin);
-	puts("\n");
-	
-	char path_dir[strlen(path_dir_with_0) - 1];
-	strncpy(path_dir, path_dir_with_0, strlen(path_dir_with_0) - 1);
-	
+		path_dir = ".";
+	}
+	else if(argc < 3){
+		path_dir = argv[1];
+		path_out = "output.txt";
+	}
+	else{
+		path_dir = argv[1];
+		path_out = argv[2];
+	}
+
 	struct file_info** catalog;
 	size_t catalog_size = 0;
 	
@@ -30,21 +30,27 @@ int main(int argc, char** argv){
 	print(catalog, catalog_size, stdout);
 	
 	FILE *fp;
-	if( (fp = fopen(path_out, "w")) == NULL){
+	if( (fp = fopen(path_out, "wt")) == NULL){
 		puts("Failed open file");
 		exit(EXIT_FAILURE);
 	}
 	print(catalog, catalog_size, fp);
-	fclose(fp);
+	
+	if(fclose(fp)){
+		puts("Failed closing file");
+		exit(EXIT_FAILURE);
+	}
 	
 	free_memory(catalog, catalog_size);
 }
 
+//Functoin return list of files and folders
 struct file_info** open_directory(char* path_dir, size_t* size){
 	struct file_info** catalog;	
 	DIR *dir;
 	struct dirent *ent;
 
+	//open directory and save information about files and directories
 	if((dir = opendir(path_dir)) != NULL){
 		catalog = (struct file_info**)malloc(sizeof(struct file_info*));
 		*size += 1;
@@ -53,16 +59,21 @@ struct file_info** open_directory(char* path_dir, size_t* size){
 				puts("Failed allocate memory");
 				return NULL;
 		}
+		// add in catalog new file or dir
 		for(int i = 0; (ent = readdir(dir)) != NULL; i++){
-			if(*size <= i){
-				catalog = realloc(catalog, ++(*size) * sizeof(struct file_info*));
+				if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+					i--;
+				else {
+					if(*size <= i){
+						catalog = realloc(catalog, ++(*size) * sizeof(struct file_info*));
 				
-				if(catalog == NULL){
-					puts("Failed allocate memory");
-					return NULL;
+						if(catalog == NULL){
+							puts("Failed allocate memory");
+							return NULL;
+						}
+					}
+					catalog[i] = name_file_or_dir(path_dir, ent->d_name);
 				}
-			}
-			catalog[i] = name_file_or_dir(path_dir, ent->d_name);
 		}
 		closedir(dir);
 	}
@@ -73,6 +84,7 @@ struct file_info** open_directory(char* path_dir, size_t* size){
 	return catalog;
 }
 
+//Function give info about file or directory
 struct file_info* name_file_or_dir(char* path_dir, char* name){
 	struct stat buf;
 	struct file_info* info = (struct file_info*)malloc(sizeof(struct file_info));
@@ -81,6 +93,7 @@ struct file_info* name_file_or_dir(char* path_dir, char* name){
 		sprintf(path_to_file, "%s/%s", path_dir, name);		
 		lstat(path_to_file, &buf);
 	}
+	//checking bit and take information about files and directories
 	if(S_ISREG(buf.st_mode)){
 		info->type = 'f';
 		info->name = name;
@@ -108,6 +121,7 @@ struct file_info* name_file_or_dir(char* path_dir, char* name){
 	return info;
 }
 
+//Function formats string size_s(file size)  1000000 to 1,000,000
 void format_size_s(char* size_s){
 	int count = 0;
 	
@@ -115,7 +129,7 @@ void format_size_s(char* size_s){
 	if(str == NULL){
 			puts("Failed allocate memory for str in format_size_s");
 			exit(EXIT_FAILURE);
-		}
+	}
 	int j = (strlen(size_s) - 1) / 3 + strlen(size_s) - 1;
 		
 	for(int i = strlen(size_s) - 1; i >= 0; ){
@@ -127,12 +141,14 @@ void format_size_s(char* size_s){
 			str[j--] = size_s[i--];
 	}
 	strcpy(size_s, str);
+	free(str);
 }
 
+//Function print directory
 void print(struct file_info** catalog, size_t size, FILE* point){
 	for(int i = 0; i < size; i++){
 		if(catalog[i]->type == 'f'){
-			fprintf(point, "%-20s %s\n", catalog[i]->name, catalog[i]->size_s);
+			fprintf(point, "%-20s %-20s\n", catalog[i]->name, catalog[i]->size_s);
 		}
 		else if(catalog[i]->type == 'd'){
 			fprintf(point, "%-20s\n", catalog[i]->name);
@@ -143,6 +159,7 @@ void print(struct file_info** catalog, size_t size, FILE* point){
 	}
 }
 
+//Function free memory 
 void free_memory(struct file_info** catalog, size_t size){
 	for(int i = 0; i < size; i++){
 		if(catalog[i]->type == 'f')

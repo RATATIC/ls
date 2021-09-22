@@ -6,6 +6,7 @@
 		a = b; 	 \
 		b = temp; })
 
+//Sorting files and directories
 void sort_files(struct file_info** catalog, size_t size){
 
 	for(int i = 0; i < size - 1; i++)
