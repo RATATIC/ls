@@ -7,4 +7,4 @@ struct file_info
 };
 
 //Functoin sorting files
-void  sort_files(char** catalog, size_t size);
+void  sort_files(struct file_info** catalog, size_t size);

@@ -8,26 +8,34 @@ int main(int argc, char** argv){
 		path_out = "output.txt";
 	else
 		path_out = argv[1];
-	
-	char* path_dir_with_0 = NULL;
+		
 	size_t size = 0;
+	char* path_dir_with_0 = NULL;
 	
 	getline(&path_dir_with_0, &size, stdin);
 	puts("\n");
 	
 	char path_dir[strlen(path_dir_with_0) - 1];
-	
 	strncpy(path_dir, path_dir_with_0, strlen(path_dir_with_0) - 1);
 	
 	struct file_info** catalog;
 	size_t catalog_size = 0;
 	
 	catalog = open_directory(path_dir, &catalog_size);
-		
 	if(catalog == NULL)
 		exit(EXIT_FAILURE);
 	
-	print(catalog, catalog_size);
+	sort_files(catalog, catalog_size);
+	
+	print(catalog, catalog_size, stdout);
+	
+	FILE *fp;
+	if( (fp = fopen(path_out, "w")) == NULL){
+		puts("Failed open file");
+		exit(EXIT_FAILURE);
+	}
+	print(catalog, catalog_size, fp);
+	fclose(fp);
 	
 	free_memory(catalog, catalog_size);
 }
@@ -66,8 +74,6 @@ struct file_info** open_directory(char* path_dir, size_t* size){
 }
 
 struct file_info* name_file_or_dir(char* path_dir, char* name){
-	char *size_s;
-	size_s = (char*)malloc(20 * sizeof(char));
 	struct stat buf;
 	struct file_info* info = (struct file_info*)malloc(sizeof(struct file_info));
 	{
@@ -79,7 +85,16 @@ struct file_info* name_file_or_dir(char* path_dir, char* name){
 		info->type = 'f';
 		info->name = name;
 		info->size = buf.st_size;
-		sprintf(size_s, "%ld ", buf.st_size);
+		
+		char* size_s = (char*)malloc(20 * sizeof(char));
+		if(size_s == NULL){
+			puts("Failed allocate memory for size_s in name_file_or_dir");
+			exit(EXIT_FAILURE);
+		}
+		sprintf(size_s, "%ld", buf.st_size);
+		
+		if(strlen(size_s) > 3)
+			format_size_s(size_s);
 		info->size_s = size_s;
 	}
 	else if(S_ISDIR(buf.st_mode)){
@@ -93,16 +108,37 @@ struct file_info* name_file_or_dir(char* path_dir, char* name){
 	return info;
 }
 
-void print(struct file_info** catalog, size_t size){
+void format_size_s(char* size_s){
+	int count = 0;
+	
+	char* str = (char*)malloc ( ((strlen(size_s) - 1) / 3  + strlen(size_s) + 1) * sizeof(char) );
+	if(str == NULL){
+			puts("Failed allocate memory for str in format_size_s");
+			exit(EXIT_FAILURE);
+		}
+	int j = (strlen(size_s) - 1) / 3 + strlen(size_s) - 1;
+		
+	for(int i = strlen(size_s) - 1; i >= 0; ){
+		if (++count > 3){
+			str[j--] = ',';
+			count = 0;
+		}
+		else
+			str[j--] = size_s[i--];
+	}
+	strcpy(size_s, str);
+}
+
+void print(struct file_info** catalog, size_t size, FILE* point){
 	for(int i = 0; i < size; i++){
 		if(catalog[i]->type == 'f'){
-			printf("%10s %s\n", catalog[i]->name, catalog[i]->size_s);
+			fprintf(point, "%-20s %s\n", catalog[i]->name, catalog[i]->size_s);
 		}
 		else if(catalog[i]->type == 'd'){
-			printf("%10s\n", catalog[i]->name);
+			fprintf(point, "%-20s\n", catalog[i]->name);
 		}
 		else if(catalog[i]->type == 'e'){
-			printf("Failed check file : %10s\n", catalog[i]->name);
+			fprintf(point, "Failed check : %-20s\n", catalog[i]->name);
 		}
 	}
 }
