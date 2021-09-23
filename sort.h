@@ -1,5 +1,4 @@
-struct file_info
-{	
+struct file_info{	
 	char type;
 	char* name;
 	size_t size;
